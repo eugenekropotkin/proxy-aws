@@ -1,5 +1,6 @@
 #!/bin/bash
 
+terraform init
 terraform apply -auto-approve
 
 echo "[hosts]" > hosts
