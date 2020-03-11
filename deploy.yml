@@ -1,0 +1,45 @@
+---
+- hosts: all
+  strategy: free
+  gather_facts: False
+  become: yes
+
+  tasks:
+  - name: Wait 300 seconds, start checking after 5 seconds
+    wait_for_connection:
+      delay: 5
+      timeout: 300
+
+  - name: install python
+    raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+    changed_when: false
+
+- hosts: hosts
+  strategy: free
+  become: yes
+
+  tasks:
+  - name: Wait 300 seconds, start checking after 5 seconds
+    wait_for_connection:
+      delay: 5
+      timeout: 300
+
+  - name: Only run "update_cache=yes" if the last one is more than 3600 seconds ago
+    apt: update_cache=yes cache_valid_time=3600
+
+  - name: Upgrade all packages to the latest version
+    apt:
+      name: "*"
+      state: latest
+      force_apt_get: yes
+
+  - name: Install a list of packages
+    apt:
+      name: "{{ packages }}"
+      state: latest
+      force_apt_get: yes
+    vars:
+      packages:
+      - curl
+      - squid
+
