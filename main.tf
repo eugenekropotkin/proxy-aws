@@ -102,6 +102,7 @@ resource "aws_subnet" "public1" {
   cidr_block = var.subnetpub1["cidr"]
   availability_zone = format("%s%s",var.aws_region,var.subnetpub1["az"])
   tags = { Name =  var.subnetpub1["name"] }
+  
 }
 
 
@@ -164,6 +165,8 @@ resource "aws_network_acl" "public_nacl1" {
     Name = "pub-main"
   }
 
+
+  depends_on = [aws_subnet.public1]
 }
 
 
@@ -267,9 +270,6 @@ output "deb10out" {
 }
 
 
-
-
-
 # proxy instance
 resource "aws_instance" "bastion1" {
   #ami           = data.aws_ami.image_bast.id
@@ -301,5 +301,4 @@ resource "aws_instance" "bastion1" {
   value = formatlist( "#inv bastions pub=%s priv=%s key=%s name=%s", aws_instance.bastion1.public_ip, aws_instance.bastion1.private_ip, aws_instance.bastion1.key_name,  aws_instance.bastion1.tags["Name"])
   depends_on = [aws_instance.bastion1]
 }
-
 
