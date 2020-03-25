@@ -4,8 +4,9 @@
 
 
 variable "aws_region" {
-	default = "eu-central-1"
+	#default = "eu-central-1"
   #default = "us-east-1"
+  default = "us-west-2"
 }
 
 
@@ -26,23 +27,55 @@ variable "aws_key" {
 
 variable "vpc1_cidr" {
     description = "CIDR for the VPC"
-    default = "172.18.0.0/22"
+    default     = "172.18.0.0/20"
 }
 
+variable "vpc1_name" {
+    description = "CIDR for the VPC"
+    default     = "pxvpc"
+}
 
 variable "subnetpub1" {
     type    = map
-    default = { name = "public1", cidr = "172.18.0.0/24", az = "a" }
+    default = { 
+      name = "public1", 
+      cidr = "172.18.0.0/24", 
+      az   = "a" }
+}
+
+variable "subnetpub2" {
+    type    = map
+    default = { 
+      name = "public2", 
+      cidr = "172.18.1.0/24", 
+      az   = "b" }
+}
+
+variable "subnetpub3" {
+    type    = map
+    default = { 
+      name = "public3", 
+      cidr = "172.18.2.0/24", 
+      az   = "c" }
+}
+
+variable "subnetpub4" {
+    type    = map
+    default = { 
+      name = "public4", 
+      cidr = "172.18.3.0/24", 
+      az   = "d" }
 }
 
 
 #### networking create
 
 resource "aws_vpc" "default" {
-    cidr_block = var.vpc1_cidr
-    enable_dns_hostnames = true 
-    enable_dns_support   = true
-    tags = { Name = "pxvpc" }
+    cidr_block                       = var.vpc1_cidr
+    enable_dns_hostnames             = true 
+    enable_dns_support               = true
+    assign_generated_ipv6_cidr_block = true
+    tags                             = { Name = var.vpc1_name }
 }
 
 
@@ -65,7 +98,7 @@ resource "aws_route" "internet_access" {
   route_table_id         = aws_vpc.default.main_route_table_id
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.igw1.id
-  depends_on = [aws_internet_gateway.igw1]
+  depends_on             = [aws_internet_gateway.igw1]
 }
 
 ## Routing table
@@ -88,9 +121,9 @@ resource "aws_route_table" "public" {
 
 # Associate subnet public_subnet to public route table
 resource "aws_route_table_association" "public_subnet_association1" {
-    subnet_id = aws_subnet.public1.id
+    subnet_id      = aws_subnet.public1.id
     route_table_id = aws_route_table.public.id
-    depends_on = [aws_internet_gateway.igw1, aws_subnet.public1]
+    depends_on     = [aws_internet_gateway.igw1, aws_subnet.public1]
 }
 
 
@@ -98,13 +131,39 @@ resource "aws_route_table_association" "public_subnet_association1" {
 
 # public1
 resource "aws_subnet" "public1" {
-  vpc_id     = aws_vpc.default.id
-  cidr_block = var.subnetpub1["cidr"]
-  availability_zone = format("%s%s",var.aws_region,var.subnetpub1["az"])
-  tags = { Name =  var.subnetpub1["name"] }
+  vpc_id            = aws_vpc.default.id
+  cidr_block        = var.subnetpub1["cidr"]
+  availability_zone = format("%s%s", var.aws_region, var.subnetpub1["az"])
+  tags              = { Name =  format("%s_%s", var.vpc1_name, var.subnetpub1["name"]) }
   
 }
 
+# public2
+resource "aws_subnet" "public2" {
+  vpc_id            = aws_vpc.default.id
+  cidr_block        = var.subnetpub2["cidr"]
+  availability_zone = format("%s%s",var.aws_region,var.subnetpub2["az"])
+  tags              = { Name =  format("%s_%s", var.vpc1_name, var.subnetpub2["name"]) }
+  
+}
+
+# public3
+resource "aws_subnet" "public3" {
+  vpc_id            = aws_vpc.default.id
+  cidr_block        = var.subnetpub3["cidr"]
+  availability_zone = format("%s%s",var.aws_region,var.subnetpub3["az"])
+  tags              = { Name =  format("%s_%s", var.vpc1_name, var.subnetpub3["name"]) }
+  
+}
+
+# public4
+resource "aws_subnet" "public4" {
+  vpc_id            = aws_vpc.default.id
+  cidr_block        = var.subnetpub4["cidr"]
+  availability_zone = format("%s%s",var.aws_region,var.subnetpub4["az"])
+  tags              = { Name =  format("%s_%s", var.vpc1_name, var.subnetpub4["name"]) }
+  
+}
 
 
 
@@ -119,19 +178,39 @@ resource "aws_network_acl" "public_nacl1" {
   egress {
     from_port   = 0
     to_port     = 0
-    rule_no    = 200
-    action     = "allow"
+    rule_no     = 200
+    action      = "allow"
     protocol    = "-1"
-    cidr_block = "0.0.0.0/0"
+    cidr_block  = "0.0.0.0/0"
   }
 
   ingress {
     protocol    = "tcp"
-    rule_no    = 201
-    action     = "allow"
-    cidr_block = "0.0.0.0/0"
+    rule_no     = 201
+    action      = "allow"
+    cidr_block  = "0.0.0.0/0"
     from_port   = 22
     to_port     = 22
+  }
+
+  
+  ingress {
+    protocol    = "tcp"
+    rule_no     = 211
+    action      = "allow"
+    cidr_block  = "0.0.0.0/0"
+    from_port   = 80
+    to_port     = 80
+  }
+
+
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 212
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 443
+    to_port    = 443
   }
 
   egress {
@@ -153,20 +232,20 @@ resource "aws_network_acl" "public_nacl1" {
   }
 
   ingress {
-    protocol    = "tcp"
+    protocol   = "tcp"
     rule_no    = 210
     action     = "allow"
     cidr_block = "0.0.0.0/0"
-    from_port   = 4096
-    to_port     = 65535
+    from_port  = 4096
+    to_port    = 65535
   }
 
   tags = {
-    Name = "pub-main"
+    Name       = "pub-main"
   }
 
 
-  depends_on = [aws_subnet.public1]
+  depends_on   = [aws_subnet.public1]
 }
 
 
@@ -185,10 +264,10 @@ resource "aws_security_group" "sg_bastion" {
   vpc_id     = aws_vpc.default.id
 
   ingress {
-      from_port   = 22
-      to_port     = 22
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -209,14 +288,14 @@ resource "aws_security_group" "sg_bastion" {
 
 resource "aws_security_group" "sg_ssh" {
   name = "sg_ssh"
-  description = "ACL rules for ssh access to hosts"
-  vpc_id     = aws_vpc.default.id
+  description   = "ACL rules for ssh access to hosts"
+  vpc_id        = aws_vpc.default.id
 
   ingress {
-      from_port   = 22
-      to_port     = 22
-      protocol    = "tcp"
-      cidr_blocks = [var.vpc1_cidr]
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc1_cidr]
   }
 
   egress {
@@ -247,16 +326,16 @@ data "aws_ami" "image_deb10" {
   most_recent = true
 
   filter {
-    name = "name"
+    name   = "name"
     values = [ "debian*10*" ]
   }
 
   filter {
-    name = "architecture"
+    name   = "architecture"
     values = ["x86_64"]
   }
 
-  owners = [ "679593333241" ]
+  owners   = [ "679593333241" ]
 }
 
 #output "u18out" {
@@ -265,7 +344,7 @@ data "aws_ami" "image_deb10" {
 #}
 
 output "deb10out" {
-  value = data.aws_ami.image_deb10
+  value      = data.aws_ami.image_deb10
   depends_on = [data.aws_ami.image_deb10]
 }
 
@@ -279,10 +358,13 @@ resource "aws_instance" "bastion1" {
 
   tags = {
     Name = "proxy1"
+    Role = "Bastion"
   }
 
-  key_name = var.aws_key
+  key_name      = var.aws_key
 
+  user_data     = file("install.sh")
+  
   associate_public_ip_address = "true"
 
   security_groups = [  ]
@@ -291,14 +373,14 @@ resource "aws_instance" "bastion1" {
     volume_size = "15"   # root device size, GB
   }
 
-  private_ip = "172.18.0.4"
-  subnet_id = aws_subnet.public1.id
+  private_ip     = "172.18.0.4"
+  subnet_id      = aws_subnet.public1.id
 
-  depends_on = [aws_internet_gateway.igw1]
+  depends_on     = [aws_internet_gateway.igw1]
 }
 
  output "bastion1out" {
-  value = formatlist( "#inv bastions pub=%s priv=%s key=%s name=%s", aws_instance.bastion1.public_ip, aws_instance.bastion1.private_ip, aws_instance.bastion1.key_name,  aws_instance.bastion1.tags["Name"])
+  value      = formatlist( "#inv bastions pub=%s priv=%s key=%s name=%s", aws_instance.bastion1.public_ip, aws_instance.bastion1.private_ip, aws_instance.bastion1.key_name,  aws_instance.bastion1.tags["Name"])
   depends_on = [aws_instance.bastion1]
 }
 
